@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>HellSync | Admin Panel + Device Info</title>
+    <!-- Firebase v8 SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+
+        body {
+            background: #000000;
+            color: #f0f0f0;
+            padding: 2rem 1.5rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* header */
+        .header {
+            margin-bottom: 2.5rem;
+            border-left: 4px solid #ffffff;
+            padding-left: 1.2rem;
+        }
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffffff, #aaaaaa);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .header .sub {
+            font-size: 0.9rem;
+            color: #a0a0a0;
+            margin-top: 0.3rem;
+            font-weight: 400;
+        }
+        .badge-dev {
+            display: inline-block;
+            background: #1a1a1a;
+            padding: 0.2rem 0.6rem;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            color: #ccc;
+        }
+
+        /* grid layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 1.8rem;
+            margin-bottom: 2.5rem;
+        }
+
+        /* cards */
+        .card {
+            background: #0c0c0c;
+            border-radius: 28px;
+            padding: 1.6rem 1.8rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 30px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.1);
+        }
+        .card-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            border-bottom: 1px solid #222;
+            padding-bottom: 0.6rem;
+        }
+        .card-title i {
+            color: #ffffff;
+            font-size: 1.3rem;
+        }
+        .input-group {
+            margin-bottom: 1.2rem;
+        }
+        .input-group label {
+            display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+            margin-bottom: 0.4rem;
+            color: #aaa;
+        }
+        input {
+            width: 100%;
+            background: #111;
+            border: 1px solid #2a2a2a;
+            border-radius: 18px;
+            padding: 0.8rem 1rem;
+            font-size: 0.9rem;
+            color: #fff;
+            transition: all 0.2s;
+            outline: none;
+        }
+        input:focus {
+            border-color: #fff;
+            background: #181818;
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
+        }
+        button {
+            background: #1f1f1f;
+            border: none;
+            color: white;
+            font-weight: 500;
+            padding: 0.8rem 1.2rem;
+            border-radius: 40px;
+            width: 100%;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 0.4rem;
+            border: 1px solid #2e2e2e;
+        }
+        button i {
+            font-size: 0.9rem;
+        }
+        button:hover {
+            background: #2c2c2c;
+            transform: scale(0.98);
+            border-color: #555;
+        }
+        .btn-primary {
+            background: #ffffff;
+            color: #000000;
+            border: none;
+            font-weight: 600;
+        }
+        .btn-primary:hover {
+            background: #e6e6e6;
+            transform: scale(0.98);
+        }
+        .reset-btn {
+            background: #1a1a1a;
+            border-color: #333;
+        }
+        .delete-btn {
+            background: #2a0f0f;
+            border-color: #441c1c;
+            color: #ff9e9e;
+        }
+        .delete-btn:hover {
+            background: #3d1818;
+            border-color: #aa4444;
+            color: white;
+        }
+        .info-btn {
+            background: #0f1a2a;
+            border-color: #1e3a5f;
+            color: #88ccff;
+        }
+        .info-btn:hover {
+            background: #1a2c44;
+        }
+
+        /* user list section */
+        .users-section {
+            background: #0c0c0c;
+            border-radius: 28px;
+            padding: 1.6rem 1.8rem;
+            margin-top: 0.4rem;
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.05);
+        }
+        .users-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #222;
+            padding-bottom: 0.8rem;
+        }
+        .users-header h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .refresh-note {
+            font-size: 0.7rem;
+            color: #7c7c7c;
+        }
+        .user-table {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            text-align: left;
+            padding: 1rem 0.5rem 0.8rem 0;
+            font-weight: 500;
+            color: #bbb;
+            font-size: 0.8rem;
+            border-bottom: 1px solid #222;
+        }
+        td {
+            padding: 0.9rem 0.5rem 0.9rem 0;
+            border-bottom: 1px solid #1a1a1a;
+            font-size: 0.9rem;
+            vertical-align: middle;
+        }
+        .status-badge {
+            display: inline-block;
+            background: #1e1e1e;
+            padding: 0.2rem 0.7rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .status-used {
+            background: #2a2a2a;
+            color: #ffffff;
+            border-left: 2px solid white;
+        }
+        .status-empty {
+            background: #111;
+            color: #aaa;
+            border-left: 2px solid #3a3a3a;
+        }
+        .empty-row td {
+            text-align: center;
+            color: #555;
+            padding: 2rem;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 0.6rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .btn-icon {
+            background: transparent;
+            border: 1px solid #333;
+            border-radius: 30px;
+            padding: 0.4rem 0.9rem;
+            width: auto;
+            margin: 0;
+            font-size: 0.75rem;
+            gap: 0.4rem;
+            transition: 0.2s;
+        }
+        .btn-icon i {
+            font-size: 0.7rem;
+        }
+        .btn-icon.delete-mini {
+            background: #1f1212;
+            border-color: #551c1c;
+            color: #ffb3b3;
+        }
+        .btn-icon.delete-mini:hover {
+            background: #3a1a1a;
+            transform: scale(0.95);
+        }
+        .btn-icon.info-mini {
+            background: #0f1a24;
+            border-color: #2a5f7a;
+            color: #7dd3fc;
+        }
+        .btn-icon.info-mini:hover {
+            background: #1a3344;
+        }
+        .toast-msg {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1e1e1e;
+            backdrop-filter: blur(8px);
+            padding: 0.8rem 1.4rem;
+            border-radius: 60px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            border-left: 4px solid white;
+            color: #f0f0f0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .toast-error {
+            border-left-color: #ff4d4d;
+            background: #1f1212;
+            color: #ffb3b3;
+        }
+        button:active {
+            transform: scale(0.96);
+        }
+
+        /* Modal untuk Device Info */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: #0c0c0c;
+            border-radius: 32px;
+            max-width: 500px;
+            width: 90%;
+            padding: 1.8rem;
+            border: 1px solid #2a2a2a;
+            box-shadow: 0 30px 40px rgba(0,0,0,0.6);
+            animation: modalFadeIn 0.2s ease;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.2rem;
+            border-bottom: 1px solid #222;
+            padding-bottom: 0.8rem;
+        }
+        .modal-header h3 {
+            font-size: 1.3rem;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #aaa;
+            width: auto;
+            margin: 0;
+            padding: 0;
+        }
+        .close-modal:hover {
+            color: white;
+            transform: none;
+        }
+        .device-detail {
+            margin: 1rem 0;
+        }
+        .device-detail p {
+            margin: 0.8rem 0;
+            background: #111;
+            padding: 0.7rem;
+            border-radius: 16px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .device-label {
+            font-weight: 600;
+            color: #bbb;
+            display: block;
+            margin-bottom: 0.2rem;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+        @media (max-width: 760px) {
+            body { padding: 1.2rem; }
+            .card, .users-section { padding: 1.2rem; }
+            .action-buttons { gap: 0.4rem; }
+            .btn-icon { padding: 0.3rem 0.7rem; }
+        }
+        footer {
+            text-align: center;
+            margin-top: 2.5rem;
+            font-size: 0.7rem;
+            color: #3a3a3a;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>HellSync Admin Panel</h1>
+        <div class="sub">TAM X KENX <span class="badge-dev">· device info + hapus user</span></div>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- Add User Card -->
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-user-plus"></i>
+                <span>Tambah Akun</span>
+            </div>
+            <div class="input-group">
+                <label><i class="far fa-user"></i> Username</label>
+                <input type="text" id="addUsername" placeholder="contoh: tamkenx" autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label><i class="fas fa-lock"></i> Password</label>
+                <input type="password" id="addPassword" placeholder="••••••••">
+            </div>
+            <button id="addUserBtn" class="btn-primary"><i class="fas fa-save"></i> Tambah User</button>
+        </div>
+
+        <!-- Device Control Card -->
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-microchip"></i>
+                <span>Kontrol Device</span>
+            </div>
+            <div class="input-group">
+                <label><i class="fas fa-id-badge"></i> Username (target)</label>
+                <input type="text" id="resetUsername" placeholder="username untuk reset device">
+            </div>
+            <button id="resetDeviceBtn" class="reset-btn"><i class="fas fa-sync-alt"></i> Reset Device ID</button>
+            <div style="font-size: 0.7rem; margin-top: 12px; color: #5a5a5a; text-align: center;">
+                <i class="fas fa-info-circle"></i> Mengosongkan device_id menjadi ""
+            </div>
+        </div>
+    </div>
+
+    <!-- User list display with DELETE + DEVICE INFO -->
+    <div class="users-section">
+        <div class="users-header">
+            <h2><i class="fas fa-users"></i> Daftar Pengguna</h2>
+            <div class="refresh-note"><i class="fas fa-database"></i> realtime · device info lengkap</div>
+        </div>
+        <div class="user-table">
+            <table id="userTable">
+                <thead>
+                    <tr><th>Username</th><th>Status Device</th><th style="width: 150px;">Aksi</th></tr>
+                </thead>
+                <tbody id="userTableBody">
+                    <tr class="empty-row"><td colspan="3">Memuat data pengguna...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <footer>HellSync secure panel — klik [Info Device] untuk detail lengkap</footer>
+</div>
+
+<!-- Modal Device Info -->
+<div id="deviceModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-microchip"></i> Device Information</h3>
+            <button class="close-modal" id="closeModalBtn">&times;</button>
+        </div>
+        <div id="modalDeviceContent">
+            <div class="device-detail">
+                <span class="device-label"><i class="fas fa-user"></i> Username</span>
+                <p id="modalUsername">-</p>
+                <span class="device-label"><i class="fas fa-id-card"></i> Device ID</span>
+                <p id="modalDeviceId">-</p>
+                <span class="device-label"><i class="fas fa-plug"></i> Status Koneksi</span>
+                <p id="modalStatus">-</p>
+                <span class="device-label"><i class="fas fa-clock"></i> Informasi</span>
+                <p id="modalExtra">Device ID bisa berupa hash unik dari client yang terhubung.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ----------------------------- FIREBASE CONFIGURATION ---------------------------------
+    const firebaseConfig = {
+        apiKey: "AIzaSyCIyzSLQm9MsxM-6SVnybM63o20HeeRNi8",
+        databaseURL: "https://hellsync-6b3b4-default-rtdb.firebaseio.com",
+        projectId: "hellsync-6b3b4"
+    };
+    
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    const database = firebase.database();
+    const usersRef = database.ref('users');
+
+    // ---------- Helper: Toast notification ----------
+    function showMessage(text, isError = false) {
+        const existingToast = document.querySelector('.toast-msg');
+        if(existingToast) existingToast.remove();
+        
+        const toast = document.createElement('div');
+        toast.className = 'toast-msg';
+        if(isError) toast.classList.add('toast-error');
+        toast.innerHTML = isError ? `<i class="fas fa-exclamation-triangle"></i> ${text}` : `<i class="fas fa-check-circle"></i> ${text}`;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            if(toast && toast.parentNode) toast.remove();
+        }, 3000);
+    }
+
+    function animateButton(btnElement) {
+        if(!btnElement) return;
+        btnElement.style.transform = 'scale(0.96)';
+        setTimeout(() => {
+            if(btnElement) btnElement.style.transform = '';
+        }, 120);
+    }
+
+    // ---------- 1. Add User Logic ----------
+    const addUsernameInput = document.getElementById('addUsername');
+    const addPasswordInput = document.getElementById('addPassword');
+    const addBtn = document.getElementById('addUserBtn');
+
+    async function addUser() {
+        const username = addUsernameInput.value.trim();
+        const password = addPasswordInput.value.trim();
+        
+        if(!username) {
+            showMessage("Username tidak boleh kosong", true);
+            return;
+        }
+        if(!password) {
+            showMessage("Password tidak boleh kosong", true);
+            return;
+        }
+        const invalidChars = /[.#$\[\]]/;
+        if(invalidChars.test(username)) {
+            showMessage('Username tidak valid: tidak boleh mengandung ., #, $, [, ]', true);
+            return;
+        }
+        
+        animateButton(addBtn);
+        
+        try {
+            const snapshot = await usersRef.child(username).once('value');
+            if(snapshot.exists()) {
+                showMessage(`User "${username}" sudah ada!`, true);
+                return;
+            }
+            const userData = {
+                username: username,
+                password: password,
+                device_id: ""
+            };
+            await usersRef.child(username).set(userData);
+            showMessage(`User "${username}" berhasil ditambahkan ✅`);
+            addUsernameInput.value = '';
+            addPasswordInput.value = '';
+        } catch (error) {
+            console.error(error);
+            showMessage(`Gagal tambah user: ${error.message}`, true);
+        }
+    }
+    addBtn.addEventListener('click', addUser);
+    
+    // ---------- 2. Reset Device ID ----------
+    const resetUsernameInput = document.getElementById('resetUsername');
+    const resetBtn = document.getElementById('resetDeviceBtn');
+    
+    async function resetDevice() {
+        const username = resetUsernameInput.value.trim();
+        if(!username) {
+            showMessage("Masukkan username untuk reset device", true);
+            return;
+        }
+        animateButton(resetBtn);
+        try {
+            const userSnapshot = await usersRef.child(username).once('value');
+            if(!userSnapshot.exists()) {
+                showMessage(`User "${username}" tidak ditemukan`, true);
+                return;
+            }
+            await usersRef.child(username).child('device_id').set("");
+            showMessage(`Device ID untuk "${username}" telah direset ✅`);
+            resetUsernameInput.value = '';
+        } catch (error) {
+            console.error(error);
+            showMessage(`Reset gagal: ${error.message}`, true);
+        }
+    }
+    resetBtn.addEventListener('click', resetDevice);
+    
+    // ---------- 3. DELETE USER (HAPUS USER) ----------
+    async function deleteUser(username) {
+        const confirmDelete = confirm(`Yakin ingin menghapus user "${username}"? Data akan hilang permanen.`);
+        if(!confirmDelete) return;
+        
+        try {
+            const userCheck = await usersRef.child(username).once('value');
+            if(!userCheck.exists()) {
+                showMessage(`User "${username}" tidak ditemukan.`, true);
+                return;
+            }
+            await usersRef.child(username).remove();
+            showMessage(`User "${username}" berhasil dihapus! 🗑️`);
+        } catch (error) {
+            console.error(error);
+            showMessage(`Gagal menghapus: ${error.message}`, true);
+        }
+    }
+    
+    // ---------- 4. DEVICE INFO MODAL ----------
+    const modal = document.getElementById('deviceModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    
+    function showDeviceInfo(username, deviceId) {
+        const modalUsername = document.getElementById('modalUsername');
+        const modalDeviceId = document.getElementById('modalDeviceId');
+        const modalStatus = document.getElementById('modalStatus');
+        
+        modalUsername.innerText = username;
+        const deviceValue = (deviceId && deviceId.trim() !== "") ? deviceId : "(kosong)";
+        modalDeviceId.innerText = deviceValue;
+        
+        const isUsed = deviceValue !== "(kosong)" && deviceValue.trim() !== "";
+        if(isUsed) {
+            modalStatus.innerHTML = '<span style="color:#6fcf97;"><i class="fas fa-link"></i> Terhubung / Device terdaftar</span>';
+            modalStatus.style.color = "#6fcf97";
+        } else {
+            modalStatus.innerHTML = '<span style="color:#aaa;"><i class="far fa-circle"></i> Belum ada device (Empty)</span>';
+        }
+        
+        // Extra info: panjang device ID atau catatan
+        const extraInfo = document.getElementById('modalExtra');
+        if(isUsed && deviceValue.length > 0) {
+            extraInfo.innerHTML = `<i class="fas fa-chart-simple"></i> Panjang Device ID: ${deviceValue.length} karakter · Perangkat terikat ke akun ini.`;
+        } else {
+            extraInfo.innerHTML = `<i class="fas fa-info-circle"></i> Device ID kosong. User belum melakukan pairing atau sudah direset.`;
+        }
+        
+        modal.classList.add('active');
+    }
+    
+    function closeModal() {
+        modal.classList.remove('active');
+    }
+    
+    closeModalBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if(e.target === modal) closeModal();
+    });
+    
+    // ---------- 5. Render User List with DELETE + DEVICE INFO Button ----------
+    const tableBody = document.getElementById('userTableBody');
+    
+    function escapeHtml(str) {
+        if(!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if(m === '&') return '&amp;';
+            if(m === '<') return '&lt;';
+            if(m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    function renderUsers(snapshot) {
+        const usersData = snapshot.val();
+        if(!usersData) {
+            tableBody.innerHTML = '<tr class="empty-row"><td colspan="3">Belum ada pengguna. Tambahkan user pertama ✨</td></tr>';
+            return;
+        }
+        
+        const usersArray = Object.keys(usersData).map(key => {
+            const data = usersData[key];
+            return {
+                username: data.username || key,
+                device_id: (data.device_id !== undefined && data.device_id !== null) ? data.device_id : "",
+                rawKey: key
+            };
+        }).sort((a,b) => a.username.localeCompare(b.username));
+        
+        if(usersArray.length === 0) {
+            tableBody.innerHTML = '<tr class="empty-row"><td colspan="3">Tidak ada pengguna terdaftar</td></tr>';
+            return;
+        }
+        
+        let html = '';
+        for(let user of usersArray) {
+            const deviceValue = user.device_id;
+            const isUsed = deviceValue && deviceValue.trim() !== "";
+            let statusText = isUsed ? `Used (${deviceValue.substring(0, 10)}${deviceValue.length > 10 ? '…' : ''})` : "Empty";
+            const statusClass = isUsed ? "status-used" : "status-empty";
+            const statusIcon = isUsed ? '<i class="fas fa-link"></i>' : '<i class="far fa-circle"></i>';
+            const safeUsername = escapeHtml(user.username);
+            
+            html += `
+                <tr data-username="${safeUsername}">
+                    <td style="font-weight: 500;">${safeUsername}</td>
+                    <td>
+                        <span class="status-badge ${statusClass}">
+                            ${statusIcon} ${escapeHtml(statusText)}
+                        </span>
+                    </td>
+                    <td class="action-buttons">
+                        <button class="btn-icon info-mini" data-info-user="${safeUsername}" data-device-id="${escapeHtml(deviceValue)}" title="Lihat detail device">
+                            <i class="fas fa-info-circle"></i> Info Device
+                        </button>
+                        <button class="btn-icon delete-mini" data-delete-user="${safeUsername}" title="Hapus user">
+                            <i class="fas fa-trash-alt"></i> Hapus
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+        tableBody.innerHTML = html;
+        
+        // Attach event untuk tombol hapus
+        const deleteButtons = document.querySelectorAll('[data-delete-user]');
+        deleteButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const username = btn.getAttribute('data-delete-user');
+                if(username) {
+                    animateButton(btn);
+                    deleteUser(username);
+                }
+            });
+        });
+        
+        // Attach event untuk tombol device info
+        const infoButtons = document.querySelectorAll('[data-info-user]');
+        infoButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const username = btn.getAttribute('data-info-user');
+                const deviceIdRaw = btn.getAttribute('data-device-id') || "";
+                animateButton(btn);
+                showDeviceInfo(username, deviceIdRaw);
+            });
+        });
+    }
+    
+    // Realtime listener untuk semua perubahan (add, update, delete)
+    usersRef.on('value', (snapshot) => {
+        renderUsers(snapshot);
+    }, (error) => {
+        console.error("Realtime error:", error);
+        tableBody.innerHTML = `<tr class="empty-row"><td colspan="3">⚠️ Koneksi database error: ${error.message}</td></tr>`;
+        showMessage("Koneksi Firebase bermasalah.", true);
+    });
+    
+    // ---------- Extra: Enter key support ----------
+    function handleEnter(e, callback) {
+        if(e.key === 'Enter') {
+            e.preventDefault();
+            callback();
+        }
+    }
+    addUsernameInput.addEventListener('keypress', (e) => handleEnter(e, addUser));
+    addPasswordInput.addEventListener('keypress', (e) => handleEnter(e, addUser));
+    resetUsernameInput.addEventListener('keypress', (e) => handleEnter(e, resetDevice));
+    
+    window.addEventListener('load', () => {
+        console.log("HellSync Admin with DEVICE INFO — TAM X KENX");
+    });
+</script>
+</body>
+</html>
