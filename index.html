@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>HellSync | Admin Panel + Device Info</title>
+    <title>HellSync | Admin Panel + Device Info + Statistik</title>
     <!-- Firebase v8 SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Chart.js untuk grafik -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -59,6 +61,50 @@
             font-weight: 500;
             letter-spacing: 0.3px;
             color: #ccc;
+        }
+
+        /* stat cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.2rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #0c0c0c, #080808);
+            border-radius: 24px;
+            padding: 1.2rem 1.5rem;
+            border: 1px solid #1f1f1f;
+            transition: all 0.2s ease;
+        }
+        .stat-card:hover {
+            border-color: #333;
+            transform: translateY(-2px);
+        }
+        .stat-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 0.5rem;
+        }
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff, #ccc);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .stat-sub {
+            font-size: 0.7rem;
+            color: #666;
+            margin-top: 0.3rem;
+        }
+        .stat-icon {
+            float: right;
+            font-size: 2rem;
+            opacity: 0.3;
         }
 
         /* grid layout */
@@ -240,12 +286,12 @@
             font-weight: 500;
         }
         .status-used {
-            background: #2a2a2a;
-            color: #ffffff;
-            border-left: 2px solid white;
+            background: #1a3a2a;
+            color: #6fcf97;
+            border-left: 2px solid #6fcf97;
         }
         .status-empty {
-            background: #111;
+            background: #1a1a1a;
             color: #aaa;
             border-left: 2px solid #3a3a3a;
         }
@@ -396,11 +442,38 @@
             font-size: 0.7rem;
             text-transform: uppercase;
         }
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* chart container */
+        .chart-container {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #080808;
+            border-radius: 20px;
+        }
+        canvas {
+            max-height: 200px;
+        }
+        
         @media (max-width: 760px) {
             body { padding: 1.2rem; }
             .card, .users-section { padding: 1.2rem; }
             .action-buttons { gap: 0.4rem; }
             .btn-icon { padding: 0.3rem 0.7rem; }
+            .stats-grid { gap: 0.8rem; }
+            .stat-value { font-size: 1.8rem; }
         }
         footer {
             text-align: center;
@@ -414,7 +487,35 @@
 <div class="container">
     <div class="header">
         <h1>HellSync Admin Panel</h1>
-        <div class="sub">TAM X KENX <span class="badge-dev">· device info + hapus user</span></div>
+        <div class="sub">TAM X KENX <span class="badge-dev">· device info + hapus user + statistik lengkap</span></div>
+    </div>
+
+    <!-- STATISTICS CARDS -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <i class="fas fa-users stat-icon"></i>
+            <div class="stat-title">TOTAL PENGGUNA</div>
+            <div class="stat-value" id="totalUsers">0</div>
+            <div class="stat-sub">terdaftar di database</div>
+        </div>
+        <div class="stat-card">
+            <i class="fas fa-link stat-icon"></i>
+            <div class="stat-title">DEVICE AKTIF</div>
+            <div class="stat-value" id="activeDevices">0</div>
+            <div class="stat-sub">user dengan device terikat</div>
+        </div>
+        <div class="stat-card">
+            <i class="fas fa-circle stat-icon"></i>
+            <div class="stat-title">DEVICE KOSONG</div>
+            <div class="stat-value" id="emptyDevices">0</div>
+            <div class="stat-sub">belum pairing device</div>
+        </div>
+        <div class="stat-card">
+            <i class="fas fa-chart-line stat-icon"></i>
+            <div class="stat-title">AKTIVASI RATIO</div>
+            <div class="stat-value" id="activationRatio">0%</div>
+            <div class="stat-sub">device aktif / total user</div>
+        </div>
     </div>
 
     <div class="dashboard-grid">
@@ -461,10 +562,14 @@
         <div class="user-table">
             <table id="userTable">
                 <thead>
-                    <tr><th>Username</th><th>Status Device</th><th style="width: 150px;">Aksi</th></tr>
+                    <tr>
+                        <th>Username</th>
+                        <th>Status Device</th>
+                        <th style="width: 180px;">Aksi</th>
+                    </tr>
                 </thead>
                 <tbody id="userTableBody">
-                    <tr class="empty-row"><td colspan="3">Memuat data pengguna...</td></tr>
+                    <tr class="empty-row"><td colspan="3"><div class="loading-spinner"></div> Memuat data pengguna...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -532,6 +637,55 @@
         }, 120);
     }
 
+    // ---------- Update Statistics (Total User, Active Device, Empty Device, Ratio) ----------
+    function updateStatistics(usersData) {
+        if (!usersData) {
+            document.getElementById('totalUsers').innerText = '0';
+            document.getElementById('activeDevices').innerText = '0';
+            document.getElementById('emptyDevices').innerText = '0';
+            document.getElementById('activationRatio').innerText = '0%';
+            return;
+        }
+        
+        const usersArray = Object.keys(usersData).map(key => {
+            const data = usersData[key];
+            return {
+                username: data.username || key,
+                device_id: (data.device_id !== undefined && data.device_id !== null) ? data.device_id : ""
+            };
+        });
+        
+        const totalUsers = usersArray.length;
+        const activeDevices = usersArray.filter(user => user.device_id && user.device_id.trim() !== "").length;
+        const emptyDevices = totalUsers - activeDevices;
+        const activationRatio = totalUsers > 0 ? Math.round((activeDevices / totalUsers) * 100) : 0;
+        
+        document.getElementById('totalUsers').innerText = totalUsers;
+        document.getElementById('activeDevices').innerText = activeDevices;
+        document.getElementById('emptyDevices').innerText = emptyDevices;
+        document.getElementById('activationRatio').innerText = `${activationRatio}%`;
+        
+        // Animasi sedikit pada stat card
+        const statCards = document.querySelectorAll('.stat-value');
+        statCards.forEach(card => {
+            card.style.transform = 'scale(1.05)';
+            setTimeout(() => {
+                card.style.transform = 'scale(1)';
+            }, 200);
+        });
+    }
+
+    // ---------- Fungsi untuk memuat ulang data (refresh manual) ----------
+    function refreshData() {
+        usersRef.once('value', (snapshot) => {
+            renderUsers(snapshot);
+            showMessage("Data berhasil dimuat ulang ✅");
+        }).catch((error) => {
+            console.error("Refresh error:", error);
+            showMessage("Gagal memuat ulang data: " + error.message, true);
+        });
+    }
+
     // ---------- 1. Add User Logic ----------
     const addUsernameInput = document.getElementById('addUsername');
     const addPasswordInput = document.getElementById('addPassword');
@@ -572,9 +726,15 @@
             showMessage(`User "${username}" berhasil ditambahkan ✅`);
             addUsernameInput.value = '';
             addPasswordInput.value = '';
+            
+            setTimeout(() => refreshData(), 500);
         } catch (error) {
             console.error(error);
-            showMessage(`Gagal tambah user: ${error.message}`, true);
+            let errorMsg = error.message;
+            if (errorMsg.includes("PERMISSION_DENIED")) {
+                errorMsg = "Permission denied! Cek security rules Firebase Database.";
+            }
+            showMessage(`Gagal tambah user: ${errorMsg}`, true);
         }
     }
     addBtn.addEventListener('click', addUser);
@@ -599,6 +759,8 @@
             await usersRef.child(username).child('device_id').set("");
             showMessage(`Device ID untuk "${username}" telah direset ✅`);
             resetUsernameInput.value = '';
+            
+            setTimeout(() => refreshData(), 300);
         } catch (error) {
             console.error(error);
             showMessage(`Reset gagal: ${error.message}`, true);
@@ -619,6 +781,8 @@
             }
             await usersRef.child(username).remove();
             showMessage(`User "${username}" berhasil dihapus! 🗑️`);
+            
+            setTimeout(() => refreshData(), 300);
         } catch (error) {
             console.error(error);
             showMessage(`Gagal menghapus: ${error.message}`, true);
@@ -641,12 +805,10 @@
         const isUsed = deviceValue !== "(kosong)" && deviceValue.trim() !== "";
         if(isUsed) {
             modalStatus.innerHTML = '<span style="color:#6fcf97;"><i class="fas fa-link"></i> Terhubung / Device terdaftar</span>';
-            modalStatus.style.color = "#6fcf97";
         } else {
             modalStatus.innerHTML = '<span style="color:#aaa;"><i class="far fa-circle"></i> Belum ada device (Empty)</span>';
         }
         
-        // Extra info: panjang device ID atau catatan
         const extraInfo = document.getElementById('modalExtra');
         if(isUsed && deviceValue.length > 0) {
             extraInfo.innerHTML = `<i class="fas fa-chart-simple"></i> Panjang Device ID: ${deviceValue.length} karakter · Perangkat terikat ke akun ini.`;
@@ -681,6 +843,10 @@
     
     function renderUsers(snapshot) {
         const usersData = snapshot.val();
+        
+        // Update statistics
+        updateStatistics(usersData);
+        
         if(!usersData) {
             tableBody.innerHTML = '<tr class="empty-row"><td colspan="3">Belum ada pengguna. Tambahkan user pertama ✨</td></tr>';
             return;
@@ -704,10 +870,11 @@
         for(let user of usersArray) {
             const deviceValue = user.device_id;
             const isUsed = deviceValue && deviceValue.trim() !== "";
-            let statusText = isUsed ? `Used (${deviceValue.substring(0, 10)}${deviceValue.length > 10 ? '…' : ''})` : "Empty";
+            let statusText = isUsed ? `Active (${deviceValue.substring(0, 10)}${deviceValue.length > 10 ? '…' : ''})` : "Inactive";
             const statusClass = isUsed ? "status-used" : "status-empty";
             const statusIcon = isUsed ? '<i class="fas fa-link"></i>' : '<i class="far fa-circle"></i>';
             const safeUsername = escapeHtml(user.username);
+            const safeDeviceId = escapeHtml(deviceValue);
             
             html += `
                 <tr data-username="${safeUsername}">
@@ -718,7 +885,7 @@
                         </span>
                     </td>
                     <td class="action-buttons">
-                        <button class="btn-icon info-mini" data-info-user="${safeUsername}" data-device-id="${escapeHtml(deviceValue)}" title="Lihat detail device">
+                        <button class="btn-icon info-mini" data-info-user="${safeUsername}" data-device-id="${safeDeviceId}" title="Lihat detail device">
                             <i class="fas fa-info-circle"></i> Info Device
                         </button>
                         <button class="btn-icon delete-mini" data-delete-user="${safeUsername}" title="Hapus user">
@@ -756,16 +923,44 @@
         });
     }
     
-    // Realtime listener untuk semua perubahan (add, update, delete)
+    // Realtime listener untuk semua perubahan
+    let initialLoadDone = false;
+    
     usersRef.on('value', (snapshot) => {
         renderUsers(snapshot);
+        if (!initialLoadDone) {
+            initialLoadDone = true;
+            showMessage("Koneksi Firebase berhasil! Data tersedia.", false);
+        }
     }, (error) => {
         console.error("Realtime error:", error);
-        tableBody.innerHTML = `<tr class="empty-row"><td colspan="3">⚠️ Koneksi database error: ${error.message}</td></tr>`;
-        showMessage("Koneksi Firebase bermasalah.", true);
+        let errorMsg = error.message;
+        if (errorMsg.includes("PERMISSION_DENIED")) {
+            errorMsg = "Permission denied! Masuk ke Firebase Console → Realtime Database → Rules, dan set rules ke: { \"rules\": { \".read\": true, \".write\": true } }";
+        }
+        tableBody.innerHTML = `<tr class="empty-row"><td colspan="3">⚠️ Koneksi database error: ${errorMsg}</td></tr>`;
+        showMessage("Error Firebase: " + errorMsg, true);
     });
     
-    // ---------- Extra: Enter key support ----------
+    // Tombol refresh manual
+    const usersHeader = document.querySelector('.users-header');
+    const refreshBtn = document.createElement('button');
+    refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+    refreshBtn.style.background = '#1a1a1a';
+    refreshBtn.style.border = '1px solid #333';
+    refreshBtn.style.borderRadius = '40px';
+    refreshBtn.style.padding = '0.4rem 1rem';
+    refreshBtn.style.width = 'auto';
+    refreshBtn.style.fontSize = '0.75rem';
+    refreshBtn.style.margin = '0';
+    refreshBtn.style.cursor = 'pointer';
+    refreshBtn.addEventListener('click', (e) => {
+        animateButton(refreshBtn);
+        refreshData();
+    });
+    usersHeader.appendChild(refreshBtn);
+    
+    // Enter key support
     function handleEnter(e, callback) {
         if(e.key === 'Enter') {
             e.preventDefault();
@@ -777,7 +972,7 @@
     resetUsernameInput.addEventListener('keypress', (e) => handleEnter(e, resetDevice));
     
     window.addEventListener('load', () => {
-        console.log("HellSync Admin with DEVICE INFO — TAM X KENX");
+        console.log("HellSync Admin with STATISTICS — TAM X KENX");
     });
 </script>
 </body>
